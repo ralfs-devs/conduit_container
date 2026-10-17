@@ -1,0 +1,35 @@
+# ---------- secrets ----------
+.env
+*.env
+!.env.example
+
+# ---------- python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+db.sqlite3
+db.sqlite3-journal
+backend/static/
+
+# ---------- node / angular ----------
+node_modules/
+frontend/dist/
+frontend/.angular/
+npm-debug.log*
+
+# ---------- docker / runtime artifacts ----------
+*.log
+volumes/
+
+# ---------- editors ----------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.workplate
+
+# ---------- os ----------
+.DS_Store
+Thumbs.db
