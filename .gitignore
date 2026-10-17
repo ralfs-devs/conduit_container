@@ -29,6 +29,7 @@ volumes/
 .idea/
 *.swp
 .workplate
+.pre-commit-config.yaml
 
 # ---------- os ----------
 .DS_Store

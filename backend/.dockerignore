@@ -1,0 +1,8 @@
+.git
+.gitignore
+.dockerignore
+__pycache__
+*.pyc
+db.sqlite3
+static/
+README.md
