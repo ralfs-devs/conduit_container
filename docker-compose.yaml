@@ -1,0 +1,59 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8282:80"
+    init: true  
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-dev-only-insecure-key}
+      - DJANGO_DEBUG=false
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+      - DB_NAME=conduit
+      - DB_USER=conduit
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DJANGO_PORT=8000
+      - CORS_WHITELIST=http://localhost:8282
+      - DJANGO_ADMIN_USER=${DJANGO_ADMIN_USER:?DJANGO_ADMIN_USER required}
+      - DJANGO_ADMIN_EMAIL=${DJANGO_ADMIN_EMAIL:?DJANGO_ADMIN_EMAIL required}
+      - DJANGO_ADMIN_PASSWORD=${DJANGO_ADMIN_PASSWORD:?DJANGO_ADMIN_PASSWORD required}
+    init: true
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import socket;s=socket.socket();s.settimeout(2);s.connect((\"localhost\",8000))'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3    
+  database:
+    image: postgres:13-alpine
+    environment:
+      - POSTGRES_DB=conduit
+      - POSTGRES_USER=conduit
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    init: true  
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conduit -d conduit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
