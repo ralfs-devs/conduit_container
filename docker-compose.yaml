@@ -3,14 +3,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+
     ports:
       - "8282:80"
+    volumes:
+      - static_volume:/usr/share/nginx/html/static:ro  
     init: true  
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
-
   backend:
     build:
       context: ./backend
@@ -26,9 +28,13 @@ services:
       - DB_PORT=5432
       - DJANGO_PORT=8000
       - CORS_WHITELIST=http://localhost:8282
+
       - DJANGO_ADMIN_USER=${DJANGO_ADMIN_USER:?DJANGO_ADMIN_USER required}
       - DJANGO_ADMIN_EMAIL=${DJANGO_ADMIN_EMAIL:?DJANGO_ADMIN_EMAIL required}
       - DJANGO_ADMIN_PASSWORD=${DJANGO_ADMIN_PASSWORD:?DJANGO_ADMIN_PASSWORD required}
+      - DJANGO_SUPERUSER_PASSWORD=${DJANGO_ADMIN_PASSWORD:?DJANGO_ADMIN_PASSWORD required}
+    volumes:
+      - static_volume:/app/static  
     init: true
     restart: unless-stopped
     depends_on:
@@ -57,3 +63,4 @@ services:
 
 volumes:
   postgres_data:
+  static_volume:
