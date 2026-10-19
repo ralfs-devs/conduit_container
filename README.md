@@ -22,8 +22,8 @@ frontend) deployed with Docker Compose.
 1. Clone this Repository
 
    ```bash
-   git clone git@github.com:ralfs-devs/conduit-container.git
-   cd conduit-container
+   git clone git@github.com:ralfs-devs/conduit_container.git
+   cd conduit_container
    ```
 
 2. Copy .env.example to .env and customize it to your personal settings
