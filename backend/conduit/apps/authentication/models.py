@@ -46,12 +46,10 @@ class UserManager(BaseUserManager):
         print('Reading superuser password from env')
         SUPER_USER_PASSWORD = os.environ.get(
             'DJANGO_SUPERUSER_PASSWORD', '')
-        if len(SUPER_USER_PASSWORD) >= 4:
-            password = SUPER_USER_PASSWORD
-        else:
-            print('Setting default password since no superuser password was provided.')
-            password = 'securepass'
-
+        if len(SUPER_USER_PASSWORD) < 8:
+            raise RuntimeError('DJANGO_SUPERUSER_PASSWORD missing or too short')
+        password = SUPER_USER_PASSWORD
+        
         user = self.create_user(username, email, password)
         user.is_superuser = True
         user.is_staff = True

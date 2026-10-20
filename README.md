@@ -19,29 +19,40 @@ frontend) deployed with Docker Compose.
 
 ## Quickstart
 
-1. Clone this Repository
+1. Clone this Repository and change to the project directory
 
    ```bash
    git clone git@github.com:ralfs-devs/conduit_container.git
    cd conduit_container
    ```
 
-2. Copy .env.example to .env and customize it to your personal settings
+2. Change to the project directory
+
+   ```bash
+   cd conduit_container
+   ```
+
+3. Copy .env.example to .env
 
    ```bash
    cp .env.example .env
+   ```
+
+4. Customize it to your personal settings
+
+   ```bash
    nano .env
    ```
 
    For further information about configuration see [Configuration](#configuration)
 
-3. Start the Docker Containers
+5. Start the Docker Containers
 
    ```bash
    docker compose up --build -d
    ```
 
-4. The application is then available at  
+6. The application is then available at  
 
    <http://localhost:8282>
 
@@ -71,16 +82,19 @@ Angular SPA uses client-side routing with an `index.html` fallback.
 ### Configuration
 
 All configuration happens through environment variables defined in `.env`
-(see `.env.example`). Missing required variables abort startup via `:?` checks.
+(see `.env.example`). Required variables abort `docker compose` before the
+build starts via `:?` checks.
 
-| Variable             | Required | Purpose                                  |
-| -------------------- |  ---     | ---------------------------------------- |
-| SECRET_KEY           | yes      | Django secret key                        |
-| DB_PASSWORD          | yes      | PostgreSQL / Django database password    |
-| DJANGO_DEBUG         | no       | Enable debug mode (default: false)       |
-| DJANGO_ALLOWED_HOSTS | no       | Allowed hosts (comma-separated)          |
-| CORS_WHITELIST       | no       | Allowed origins (comma-separated)        |
-| DJANGO_ADMIN_*       | no       | Admin credentials created on first start |
+| Variable              | Required | Purpose                                |
+| --------------------- | -------- | -------------------------------------- |
+| SECRET_KEY            | yes      | Django secret key                      |
+| DB_PASSWORD           | yes      | PostgreSQL / Django database password  |
+| DJANGO_ADMIN_USER     | yes      | Admin username created on first start  |
+| DJANGO_ADMIN_EMAIL    | yes      | Admin email created on first start     |
+| DJANGO_ADMIN_PASSWORD | yes      | Admin password (min. 8 characters)     |
+| DJANGO_DEBUG          | no       | Enable debug mode (default: false)     |
+| DJANGO_ALLOWED_HOSTS  | no       | Allowed hosts (comma-separated)        |
+| CORS_WHITELIST        | no       | Allowed origins (comma-separated)      |
 
 ### Changing Ports / Hosts
 
@@ -106,8 +120,11 @@ unpatched by design. Do not use this application for production purposes
 Mitigations in place:
 
 - Backend and database have no host port mappings; only nginx is reachable
-- All secrets are injected via `.env` (never committed; enforced by  
-  `:?` checks in `docker-compose.yaml`)
+- All secrets are injected via `.env` (never committed); required variables
+  are enforced by `:?` checks in `docker-compose.yaml`, so a missing value
+  aborts the command before any image is built
+- The superuser bootstrap rejects passwords shorter than 8 characters and
+  raises instead of falling back to a hardcoded default
 - Debug mode is disabled by default
 - Database data persists in a named volume isolated from the host FS
 - The `create_superuser` script requires `DJANGO_ADMIN_*` variables to be  
