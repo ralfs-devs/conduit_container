@@ -19,6 +19,7 @@ frontend/.angular/
 npm-debug.log*
 
 # ---------- docker / runtime artifacts ----------
+*-logs*
 *.log
 volumes/
 
