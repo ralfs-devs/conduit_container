@@ -19,11 +19,10 @@ frontend) deployed with Docker Compose.
 
 ## Quickstart
 
-1. Clone this Repository and change to the project directory
+1. Clone this Repository
 
    ```bash
    git clone git@github.com:ralfs-devs/conduit_container.git
-   cd conduit_container
    ```
 
 2. Change to the project directory
