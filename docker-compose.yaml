@@ -27,7 +27,7 @@ services:
       - DB_HOST=database
       - DB_PORT=5432
       - DJANGO_PORT=8000
-      - CORS_WHITELIST=${CORS_WHITELIST:-http://localhost:8282}
+      - CORS_WHITELIST=${CORS_WHITELIST:-http://localhost:8282,http://127.0.0.1:8282}
 
       - DJANGO_ADMIN_USER=${DJANGO_ADMIN_USER:?DJANGO_ADMIN_USER required}
       - DJANGO_ADMIN_EMAIL=${DJANGO_ADMIN_EMAIL:?DJANGO_ADMIN_EMAIL required}
@@ -50,7 +50,7 @@ services:
     environment:
       - POSTGRES_DB=conduit
       - POSTGRES_USER=conduit
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     init: true
