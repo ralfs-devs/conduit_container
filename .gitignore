@@ -28,7 +28,7 @@ volumes/
 !.vscode/extensions.json
 .idea/
 *.swp
-.workplate
+*.workplate*
 .pre-commit-config.yaml
 
 # ---------- os ----------
