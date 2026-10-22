@@ -7,8 +7,7 @@
     "start": "ng serve",
     "build": "ng build",
     "test": "ng test",
-    "lint": "ng lint --force",
-    "prepare": "husky install"
+    "lint": "ng lint --force"
   },
   "engines": {
     "node": "^18.13.0 || ^20.9.0"
@@ -36,7 +35,6 @@
     "@angular/compiler-cli": "17.2.1",
     "@types/jasmine": "~4.3.0",
     "@types/marked": "^6.0.0",
-    "husky": "^8.0.3",
     "jasmine-core": "~4.5.0",
     "karma": "~6.4.1",
     "karma-chrome-launcher": "~3.1.0",

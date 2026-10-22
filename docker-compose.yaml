@@ -1,0 +1,70 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: conduit-frontend:local
+    ports:
+      - "8282:80"
+    volumes:
+      - static_volume:/usr/share/nginx/html/static:ro
+    init: true
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: conduit-backend:local
+    environment:
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY required}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-false}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - DB_NAME=conduit
+      - DB_USER=conduit
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD required}
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DJANGO_PORT=8000
+      - CORS_WHITELIST=${CORS_WHITELIST:-http://localhost:8282,http://127.0.0.1:8282}
+
+      - DJANGO_ADMIN_USER=${DJANGO_ADMIN_USER:?DJANGO_ADMIN_USER required}
+      - DJANGO_ADMIN_EMAIL=${DJANGO_ADMIN_EMAIL:?DJANGO_ADMIN_EMAIL required}
+      - DJANGO_ADMIN_PASSWORD=${DJANGO_ADMIN_PASSWORD:?DJANGO_ADMIN_PASSWORD required}
+      - DJANGO_SUPERUSER_PASSWORD=${DJANGO_ADMIN_PASSWORD:?DJANGO_ADMIN_PASSWORD required}
+    volumes:
+      - static_volume:/app/static
+    init: true
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import socket;s=socket.socket();s.settimeout(2);s.connect((\"localhost\",8000))'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  database:
+    image: postgres:13.23-alpine
+    environment:
+      - POSTGRES_DB=conduit
+      - POSTGRES_USER=conduit
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conduit -d conduit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  static_volume:
+  
