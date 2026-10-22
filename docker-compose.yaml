@@ -3,7 +3,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-
+    image: conduit-frontend:local
     ports:
       - "8282:80"
     volumes:
@@ -13,10 +13,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: conduit-backend:local
     environment:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY required}
       - DJANGO_DEBUG=${DJANGO_DEBUG:-false}
@@ -34,7 +36,7 @@ services:
       - DJANGO_ADMIN_PASSWORD=${DJANGO_ADMIN_PASSWORD:?DJANGO_ADMIN_PASSWORD required}
       - DJANGO_SUPERUSER_PASSWORD=${DJANGO_ADMIN_PASSWORD:?DJANGO_ADMIN_PASSWORD required}
     volumes:
-      - static_volume:/app/static 
+      - static_volume:/app/static
     init: true
     restart: unless-stopped
     depends_on:
@@ -45,8 +47,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
   database:
-    image: postgres:13-alpine
+    image: postgres:13.23-alpine
     environment:
       - POSTGRES_DB=conduit
       - POSTGRES_USER=conduit

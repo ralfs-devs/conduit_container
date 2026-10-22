@@ -51,11 +51,12 @@ frontend) deployed with Docker Compose.
    docker compose up --build -d
    ```
 
-6. The application is then available at  
+6. The application is then available at
 
-   <http://localhost:8282>
+   `http://<YOUR URL>:<YOUR PORT>`
 
-For information regarding runtime refer to [Usage](#usage)
+   Replace the placeholder with the host or IP you configured in
+   `DJANGO_ALLOWED_HOSTS` (see also [Changing Ports / Hosts](#changing-ports--hosts)).
 
 ## Architecture
 
@@ -65,7 +66,7 @@ The stack runs as three Docker services:
 | -------- | --------------------- | ------------------------------------------------- |
 | frontend | nginx:1.25-alpine     | Angular 17 build served by nginx, reverse proxy   |
 | backend  | python:3.6-slim       | Django 1.10 REST API behind gunicorn (WSGI)       |
-| database | postgres:13-alpine    | PostgreSQL datastore                              |
+| database | postgres:13.23-alpine | PostgreSQL datastore                              |
 
 The legacy code itself is largely unchanged, with the exception of a few minor changes  
 (such as fixing external broken links and adapting the code to containerisation needs).  
@@ -114,7 +115,10 @@ docker compose down      # stop (add -v to wipe database data)
 
 This project intentionally ships an end-of-life stack (Django 1.10,
 Python 3.6) as a lift-and-shift exercise — known vulnerabilities remain
-unpatched by design. Do not use this application for production purposes
+unpatched by design.
+
+> [!WARNING]
+> Do not use this application in production.
 
 Mitigations in place:
 
