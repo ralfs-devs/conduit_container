@@ -50,7 +50,7 @@ jobs:
         run: |
           ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "cat > ~/conduit_container/.deployment_info << EOF
           Commit: \${IMAGE_SHA}
-          Deployed: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          Deployed: \$(date -u +%Y-%m-%dT%H:%M:%SZ)
           Owner: ralfs-devs
           EOF"
 
@@ -68,4 +68,5 @@ jobs:
             docker compose ps"
 
       - name: Log deployed commit SHA
-        run: echo "Deployed commit: ${{ github.event.workflow_run.head_sha }}"
+        run: |
+          echo "Deployed commit: ${{ github.event.workflow_run.head_sha }}"
