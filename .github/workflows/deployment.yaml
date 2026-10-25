@@ -69,4 +69,4 @@ jobs:
 
       - name: Log deployed commit SHA
         run: |
-          echo "Deployed commit: ${{ github.event.workflow_run.head_sha }}"
+          echo "Deployed commit: /${{ github.event.workflow_run.head_sha }}"
