@@ -1,0 +1,71 @@
+---
+name: Deploy
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to VM
+    # Only deploy after a successful build
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ vars.HOST_IP }} >> ~/.ssh/known_hosts
+
+      - name: Copy compose file to VM
+        run: scp docker-compose.yaml ${{ vars.USER_NAME }}@${{ vars.HOST_IP }}:~/conduit_container/
+
+      - name: Pull images and retag to local names
+        env:
+          # Resolve the owner dynamically for portability across forks/renames
+          IMAGE_OWNER: ${{ github.repository_owner }}
+          # workflow_run.head_sha pins the exact commit that was built,
+          # while github.sha would point to the default branch head
+          IMAGE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            docker pull ghcr.io/\${IMAGE_OWNER,,}/conduit-backend:\${IMAGE_SHA}
+            docker pull ghcr.io/\${IMAGE_OWNER,,}/conduit-frontend:\${IMAGE_SHA}
+            docker tag ghcr.io/\${IMAGE_OWNER,,}/conduit-backend:\${IMAGE_SHA} conduit-backend:local
+            docker tag ghcr.io/\${IMAGE_OWNER,,}/conduit-frontend:\${IMAGE_SHA} conduit-frontend:local"
+
+      - name: Record deployment metadata on VM
+        env:
+          IMAGE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "cat > ~/conduit_container/.deployment_info << EOF
+          Commit: \${IMAGE_SHA}
+          Deployed: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          Owner: ralfs-devs
+          EOF"
+
+      - name: Stop old containers
+        run: |
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            cd ~/conduit_container
+            docker compose stop"
+
+      - name: Start new containers
+        run: |
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            cd ~/conduit_container
+            docker compose up -d
+            docker compose ps"
+
+      - name: Log deployed commit SHA
+        run: echo "Deployed commit: ${{ github.event.workflow_run.head_sha }}"
