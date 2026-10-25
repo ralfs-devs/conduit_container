@@ -43,7 +43,8 @@ frontend) deployed with Docker Compose.
    nano .env
    ```
 
-   For further information about configuration see [Configuration](#configuration)
+   For further information about configuration see  
+   [Configuration](#configuration)
 
 5. Start the Docker Containers
 
@@ -56,7 +57,8 @@ frontend) deployed with Docker Compose.
    `http://<YOUR URL>:<YOUR PORT>`
 
    Replace the placeholder with the host or IP you configured in
-   `DJANGO_ALLOWED_HOSTS` (see also [Changing Ports / Hosts](#changing-ports--hosts)).
+   `DJANGO_ALLOWED_HOSTS`  
+   (see also [Changing Ports / Hosts](#changing-ports--hosts)).
 
 ## Architecture
 
