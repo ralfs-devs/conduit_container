@@ -1,9 +1,6 @@
 ---
 services:
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
     image: conduit-frontend:local
     ports:
       - "8282:80"
@@ -16,9 +13,6 @@ services:
         condition: service_healthy
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
     image: conduit-backend:local
     environment:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY required}
