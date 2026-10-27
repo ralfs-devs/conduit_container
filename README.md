@@ -147,7 +147,7 @@ and consists of two jobs:
 > [!NOTE]
 > Both jobs use `set -e` in every SSH block, so any failure aborts the workflow
 > immediately. The workflow is triggered on every push
-> to `feat/cicd-deployment`and `main`, guarded by a `concurrency` group
+> to `feat/cicd-deployment` and `main`, guarded by a `concurrency` group
 > so overlapping deployments queue instead of racing each other.
 
 ### Setup

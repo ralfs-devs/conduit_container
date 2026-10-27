@@ -78,7 +78,8 @@ jobs:
 
       - name: Record deployment metadata on VM
         run: |
-          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "cat > ~/conduit_container/.deployment_info << EOF
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            cat > ~/conduit_container/.deployment_info << EOF
           Commit: ${{ github.sha }}
           Deployed: \$(date -u +%Y-%m-%dT%H:%M:%SZ)
           Owner: ${{ env.OWNER }}
@@ -86,11 +87,13 @@ jobs:
 
       - name: Stop old containers
         run: |
-          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "cd ~/conduit_container && docker compose stop"
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            cd ~/conduit_container && docker compose stop"
 
       - name: Start new containers
         run: |
-          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "cd ~/conduit_container \
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            cd ~/conduit_container \
             && docker compose up -d && docker compose ps"
 
       - name: Log deployed commit SHA
