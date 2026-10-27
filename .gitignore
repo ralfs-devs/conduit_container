@@ -33,4 +33,4 @@ volumes/
 
 # ---------- os ----------
 .DS_Store
-Thumbs.db
+Thumbs.db.deployment_info
