@@ -22,6 +22,8 @@ npm-debug.log*
 *-logs*
 *.log
 volumes/
+.deployment_info
+
 
 # ---------- editors ----------
 .vscode/*
@@ -33,4 +35,4 @@ volumes/
 
 # ---------- os ----------
 .DS_Store
-Thumbs.db.deployment_info
+Thumbs.db
