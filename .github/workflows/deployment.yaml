@@ -1,0 +1,101 @@
+---
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [feat/cicd-deployment, main]
+
+concurrency:
+  group: deployment
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build container images
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/conduit-backend:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/conduit-backend:${{ github.sha }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/conduit-frontend:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/conduit-frontend:${{ github.sha }}
+
+  deploy:
+    name: Deploy to VM
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ vars.HOST_IP }} >> ~/.ssh/known_hosts
+
+      - name: Copy compose file to VM
+        run: scp docker-compose.yaml ${{ vars.USER_NAME }}@${{ vars.HOST_IP }}:~/conduit_container/
+
+      - name: Pull images and retag to local names
+        run: |
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            docker pull ghcr.io/${{ env.OWNER }}/conduit-backend:${{ github.sha }}
+            docker pull ghcr.io/${{ env.OWNER }}/conduit-frontend:${{ github.sha }}
+            docker tag ghcr.io/${{ env.OWNER }}/conduit-backend:${{ github.sha }} conduit-backend:local
+            docker tag ghcr.io/${{ env.OWNER }}/conduit-frontend:${{ github.sha }} conduit-frontend:local"
+
+      - name: Record deployment metadata on VM
+        run: |
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            cat > ~/conduit_container/.deployment_info << EOF
+          Commit: ${{ github.sha }}
+          Deployed: \$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          Owner: ${{ env.OWNER }}
+          EOF"
+
+      - name: Stop old containers
+        run: |
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            cd ~/conduit_container && docker compose stop"
+
+      - name: Start new containers
+        run: |
+          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+            cd ~/conduit_container \
+            && docker compose up -d && docker compose ps"
+
+      - name: Log deployed commit SHA
+        run: |
+          echo "Deployed commit: ${{ github.sha }}"
