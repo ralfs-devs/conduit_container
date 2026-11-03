@@ -63,14 +63,14 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ vars.HOST_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
 
       - name: Copy compose file to VM
-        run: scp docker-compose.yaml ${{ vars.USER_NAME }}@${{ vars.HOST_IP }}:~/conduit_container/
+        run: scp docker-compose.yaml ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }}:~/conduit_container/
 
       - name: Pull images and retag to local names
         run: |
-          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "set -e
             docker pull ghcr.io/${{ env.OWNER }}/conduit-backend:${{ github.sha }}
             docker pull ghcr.io/${{ env.OWNER }}/conduit-frontend:${{ github.sha }}
             docker tag ghcr.io/${{ env.OWNER }}/conduit-backend:${{ github.sha }} conduit-backend:local
@@ -78,24 +78,33 @@ jobs:
 
       - name: Record deployment metadata on VM
         run: |
-          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "set -e
             cat > ~/conduit_container/.deployment_info << EOF
           Commit: ${{ github.sha }}
           Deployed: \$(date -u +%Y-%m-%dT%H:%M:%SZ)
           Owner: ${{ env.OWNER }}
           EOF"
 
+      - name: Write .env to VM
+        run: |
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} 'umask 177 && cat > ~/conduit_container/.env' << EOF
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DJANGO_ADMIN_USER=${{ secrets.DJANGO_ADMIN_USER }}
+          DJANGO_ADMIN_EMAIL=${{ secrets.DJANGO_ADMIN_EMAIL }}
+          DJANGO_ADMIN_PASSWORD=${{ secrets.DJANGO_ADMIN_PASSWORD }}
+          DJANGO_DEBUG=${{ secrets.DJANGO_DEBUG }}
+          DJANGO_ALLOWED_HOSTS=${{ secrets.DJANGO_ALLOWED_HOSTS }}
+          CORS_WHITELIST=${{ secrets.CORS_WHITELIST }}
+          EOF
+
       - name: Stop old containers
         run: |
-          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "set -e
             cd ~/conduit_container && docker compose stop"
 
       - name: Start new containers
         run: |
-          ssh ${{ vars.USER_NAME }}@${{ vars.HOST_IP }} "set -e
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "set -e
             cd ~/conduit_container \
             && docker compose up -d && docker compose ps"
-
-      - name: Log deployed commit SHA
-        run: |
-          echo "Deployed commit: ${{ github.sha }}"

@@ -125,6 +125,11 @@ The application is deployed to a cloud VM via a GitHub Actions CI/CD pipeline.
 Images are built and pushed on the runner; the VM only consumes pre-built
 images (no local builds).
 
+This section describes the automated deployment only. For running the stack
+locally or on your own VM (without CI/CD), follow the
+[Quickstart](#quickstart) instead — it remains unaffected by anything
+configured here.
+
 ### Workflow
 
 The pipeline lives in
@@ -138,6 +143,7 @@ and consists of two jobs:
 2. **deploy** — runs after a successful `build` (`needs: build`), opens an
    SSH connection to the VM and:
    - copies `docker-compose.yaml` to the VM via `scp`
+   - writes the `.env` file to the VM from GitHub secrets
    - pulls the freshly built images and retags them to
      `conduit-backend:local` / `conduit-frontend:local`
    - writes deployment metadata (commit SHA, timestamp) to `.deployment_info`
@@ -147,19 +153,31 @@ and consists of two jobs:
 > [!NOTE]
 > Both jobs use `set -e` in every SSH block, so any failure aborts the workflow
 > immediately. The workflow is triggered on every push
-> to `feat/cicd-deployment` and `main`, guarded by a `concurrency` group
-> so overlapping deployments queue instead of racing each other.
+> to `main`, guarded by a `concurrency` group
+> so overlapping deployments queue instead of racing each other.  
+> Only `docker-compose.yaml` is transferred to the VM.
+> The optional `docker-compose.override.yaml` contains local build definitions
+> and never leaves the developer machine - The VM consumes pre-built images
+only.
 
 ### Setup
 
 Configure the following in *Settings → Secrets and variables → Actions*
 (none of these are stored in the repository):
 
-| Type     | Name             | Purpose                        |
-| -------- | ---------------- | ------------------------------ |
-| Variable | `HOST_IP`        | Public IP of the target VM     |
-| Variable | `USER_NAME`      | SSH user on the VM             |
-| Secret   | `SSH_PRIVATE_KEY`| Private SSH key for the deploy |
+| Type   | Name              | Purpose                        |
+| ------ | ----------------- | ------------------------------ |
+| Secret | `HOST_IP`         | Public IP of the target VM     |
+| Secret | `USER_NAME`       | SSH user on the VM             |
+| Secret | `SSH_PRIVATE_KEY` | Private SSH key for the deploy |
+
+In addition, the `deploy` job writes the `.env` on the VM from these secrets:
+
+- **Django core:** `SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`,
+  `CORS_WHITELIST`
+- **Database:** `DB_PASSWORD` (app and PostgreSQL container)
+- **Admin setup:** `DJANGO_ADMIN_USER`, `DJANGO_ADMIN_EMAIL`,
+  `DJANGO_ADMIN_PASSWORD`
 
 > [!TIP]
 > Since the GHCR packages are public, no `docker login` is required on the VM.
