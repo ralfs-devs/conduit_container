@@ -87,7 +87,8 @@ jobs:
 
       - name: Write .env to VM
         run: |
-          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} 'umask 177 && cat > ~/conduit_container/.env' << EOF
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} \
+            'rm -f ~/conduit_container/.env && umask 177 && cat > ~/conduit_container/.env' << EOF
           SECRET_KEY=${{ secrets.SECRET_KEY }}
           DB_PASSWORD=${{ secrets.DB_PASSWORD }}
           DJANGO_ADMIN_USER=${{ secrets.DJANGO_ADMIN_USER }}
@@ -108,3 +109,9 @@ jobs:
           ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "set -e
             cd ~/conduit_container \
             && docker compose up -d && docker compose ps"
+
+      - name: Clean up replaced Conduit images
+        run: |
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "docker rmi \$(docker image ls \
+            --format '{{.Repository}}:{{.Tag}}' | grep -E '^ghcr.io/${{ env.OWNER }}/conduit-') \
+            2>/dev/null || true && docker image prune -f"
