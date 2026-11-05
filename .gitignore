@@ -22,6 +22,8 @@ npm-debug.log*
 *-logs*
 *.log
 volumes/
+.deployment_info
+
 
 # ---------- editors ----------
 .vscode/*

@@ -1,0 +1,120 @@
+---
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [feat/cicd-deployment, main]
+
+concurrency:
+  group: deployment
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build container images
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/conduit-backend:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/conduit-backend:${{ github.sha }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/conduit-frontend:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/conduit-frontend:${{ github.sha }}
+
+  deploy:
+    name: Deploy to VM
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
+
+      - name: Ensure deploy directory exists
+        run: ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "mkdir -p ~/conduit"
+
+      - name: Copy compose file to VM
+        run: scp docker-compose.yaml ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }}:~/conduit/
+
+      - name: Pull images and retag to local names
+        run: |
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "set -e
+            docker pull ghcr.io/${{ env.OWNER }}/conduit-backend:${{ github.sha }}
+            docker pull ghcr.io/${{ env.OWNER }}/conduit-frontend:${{ github.sha }}
+            docker tag ghcr.io/${{ env.OWNER }}/conduit-backend:${{ github.sha }} conduit-backend:local
+            docker tag ghcr.io/${{ env.OWNER }}/conduit-frontend:${{ github.sha }} conduit-frontend:local"
+
+      - name: Record deployment metadata on VM
+        run: |
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "set -e
+          cat > ~/conduit/.deployment_info << EOF
+          Commit: ${{ github.sha }}
+          Deployed: \$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          Owner: ${{ env.OWNER }}
+          EOF"
+
+      - name: Write .env to VM
+        run: |
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} \
+            'rm -f ~/conduit/.env && umask 177 && cat > ~/conduit/.env' << EOF
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DJANGO_ADMIN_USER=${{ secrets.DJANGO_ADMIN_USER }}
+          DJANGO_ADMIN_EMAIL=${{ secrets.DJANGO_ADMIN_EMAIL }}
+          DJANGO_ADMIN_PASSWORD=${{ secrets.DJANGO_ADMIN_PASSWORD }}
+          DJANGO_DEBUG=${{ secrets.DJANGO_DEBUG }}
+          DJANGO_ALLOWED_HOSTS=${{ secrets.DJANGO_ALLOWED_HOSTS }}
+          CORS_WHITELIST=${{ secrets.CORS_WHITELIST }}
+          EOF
+
+      - name: Stop old containers
+        run: |
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "set -e
+            cd ~/conduit && docker compose stop"
+
+      - name: Start new containers
+        run: |
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "set -e
+            cd ~/conduit \
+            && docker compose up -d && docker compose ps"
+
+      - name: Clean up replaced Conduit images
+        run: |
+          ssh ${{ secrets.USER_NAME }}@${{ secrets.HOST_IP }} "docker rmi \$(docker image ls \
+            --format '{{.Repository}}:{{.Tag}}' | grep -E '^ghcr.io/${{ env.OWNER }}/conduit-') \
+            2>/dev/null || true && docker image prune -f"

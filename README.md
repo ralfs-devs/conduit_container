@@ -10,6 +10,12 @@ frontend) deployed with Docker Compose.
 - [Quickstart](#quickstart)
 - [Architecture](#architecture)
 - [Usage](#usage)
+  - [Configuration](#configuration)
+  - [Changing Ports / Hosts](#changing-ports--hosts)
+  - [Managing the Stack](#managing-the-stack)
+- [Deployment](#deployment)
+  - [Workflow](#workflow)
+  - [Setup](#setup)
 - [Security Notes](#security-notes)
 
 ## Prerequisites
@@ -43,7 +49,8 @@ frontend) deployed with Docker Compose.
    nano .env
    ```
 
-   For further information about configuration see [Configuration](#configuration)
+   For further information about configuration see  
+   [Configuration](#configuration)
 
 5. Start the Docker Containers
 
@@ -56,7 +63,8 @@ frontend) deployed with Docker Compose.
    `http://<YOUR URL>:<YOUR PORT>`
 
    Replace the placeholder with the host or IP you configured in
-   `DJANGO_ALLOWED_HOSTS` (see also [Changing Ports / Hosts](#changing-ports--hosts)).
+   `DJANGO_ALLOWED_HOSTS`  
+   (see also [Changing Ports / Hosts](#changing-ports--hosts)).
 
 ## Architecture
 
@@ -111,6 +119,69 @@ docker compose logs -f   # follow logs
 docker compose down      # stop (add -v to wipe database data)  
 ```
 
+## Deployment
+
+The application is deployed to a cloud VM via a GitHub Actions CI/CD pipeline.
+Images are built and pushed on the runner; the VM only consumes pre-built
+images (no local builds).
+
+This section describes the automated deployment only. For running the stack
+locally or on your own VM (without CI/CD), follow the
+[Quickstart](#quickstart) instead — it remains unaffected by anything
+configured here.
+
+### Workflow
+
+The pipeline lives in
+[.github/workflows/deployment.yaml](.github/workflows/deployment.yaml)
+and consists of two jobs:
+
+1. **build** — checks out the repository, logs in to GHCR with the built-in
+   `GITHUB_TOKEN`, then builds and pushes the backend and frontend images
+   using `docker/build-push-action`. Each image is tagged with `latest` and
+   the triggering commit SHA.
+2. **deploy** — runs after a successful `build` (`needs: build`), opens an
+   SSH connection to the VM and:
+   - copies `docker-compose.yaml` to the VM via `scp`
+   - writes the `.env` file to the VM from GitHub secrets
+   - pulls the freshly built images and retags them to
+     `conduit-backend:local` / `conduit-frontend:local`
+   - writes deployment metadata (commit SHA, timestamp) to `.deployment_info`
+   - restarts the stack with `docker compose stop`, `docker compose up -d`
+     and verifies it via `docker compose ps`
+
+> [!NOTE]
+> Both jobs use `set -e` in every SSH block, so any failure aborts the workflow
+> immediately. The workflow is triggered on every push
+> to `main`, guarded by a `concurrency` group
+> so overlapping deployments queue instead of racing each other.  
+> Only `docker-compose.yaml` is transferred to the VM.
+> The optional `docker-compose.override.yaml` contains local build definitions
+> and never leaves the developer machine - The VM consumes pre-built images
+only.
+
+### Setup
+
+Configure the following in *Settings → Secrets and variables → Actions*
+(none of these are stored in the repository):
+
+| Type   | Name              | Purpose                        |
+| ------ | ----------------- | ------------------------------ |
+| Secret | `HOST_IP`         | Public IP of the target VM     |
+| Secret | `USER_NAME`       | SSH user on the VM             |
+| Secret | `SSH_PRIVATE_KEY` | Private SSH key for the deploy |
+
+In addition, the `deploy` job writes the `.env` on the VM from these secrets:
+
+- **Django core:** `SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`,
+  `CORS_WHITELIST`
+- **Database:** `DB_PASSWORD` (app and PostgreSQL container)
+- **Admin setup:** `DJANGO_ADMIN_USER`, `DJANGO_ADMIN_EMAIL`,
+  `DJANGO_ADMIN_PASSWORD`
+
+> [!TIP]
+> Since the GHCR packages are public, no `docker login` is required on the VM.
+
 ## Security Notes
 
 This project intentionally ships an end-of-life stack (Django 1.10,
@@ -133,6 +204,6 @@ Mitigations in place:
 - The `create_superuser` script requires `DJANGO_ADMIN_*` variables to be  
   set in .env by replacing the default values — empty values abort startup
 
-Known legacy risks:
-
-- Django 1.10 / Python 3.6 receive no security updates anymore
+> [!WARNING]
+> Known legacy risks:
+> Django 1.10 / Python 3.6 do not receive security updates anymore

@@ -14,4 +14,4 @@ if not User.objects.filter(username=os.environ['DJANGO_ADMIN_USER']).exists():
 "
 python manage.py collectstatic --noinput --clear
 
-exec gunicorn conduit.wsgi:application --bind 0.0.0.0:${DJANGO_PORT:-8000} --workers 3
+exec gunicorn conduit.wsgi:application --bind 0.0.0.0:${DJANGO_PORT:-8000} --workers 3 --access-logfile - --error-logfile -
