@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [feat/cicd-deployment, main]
+    branches: [main]
 
 concurrency:
   group: deployment
